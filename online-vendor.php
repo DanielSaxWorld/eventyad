@@ -1,70 +1,72 @@
 <?php
 // Handle CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    header("Access-Control-Allow-Origin: *");
-    header("Access-Control-Allow-Methods: POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization");
-    header("Access-Control-Max-Age: 86400");
-    http_response_code(204); // No Content
-    exit;
+  header("Access-Control-Allow-Origin: *");
+  header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+  header("Access-Control-Allow-Headers: Content-Type, Authorization");
+  header("Access-Control-Max-Age: 86400");
+  http_response_code(204);
+  exit;
 }
 
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Content-Type: application/json");
 
-
-// Database connection
 include('db_conn.php');
 
-// Start session
-session_start();
-
-// Check if user is logged in
-if (!isset($_SESSION['email'])) {
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'Unauthorized access',
-        'data' => []
-    ]);
-    header("Location: ../");
-    exit();
+// Helper function for consistent JSON response
+function respond($status, $message, $data = [], $code = 200)
+{
+  http_response_code($code);
+  echo json_encode([
+    'status' => $status,
+    'message' => $message,
+    'data' => $data
+  ]);
+  exit;
 }
 
-$user_check = $_SESSION['email'];
+// Get Authorization header
+$headers = getallheaders();
+$authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? null;
 
-// Get today's date (optional, not used)
-$today = date("Y-m-d");
-
-// Sanitize email input to prevent SQL injection
-$user_email = mysqli_real_escape_string($conn, $user_check);
-
-// Query to get data
-$sql = "SELECT * FROM `vendor_info` WHERE email = '$user_email'";
-$result = mysqli_query($conn, $sql);
-
-// Initialize response array
-$response = [];
-
-if (mysqli_num_rows($result) > 0) {
-    while ($row = mysqli_fetch_assoc($result)) {
-        $response[] = $row;
-    }
-
-    echo json_encode([
-        'status' => 'success',
-        'message' => 'Data fetched successfully',
-        'data' => $response
-    ]);
-} else {
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'No data found',
-        'data' => []
-    ]);
+if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+  respond('error', 'Missing or invalid Authorization header', [], 401);
 }
 
-// Close DB connection
-mysqli_close($conn);
-?>
+$token = $matches[1];
+
+// Validate token against database
+$stmt = $conn->prepare("SELECT * FROM vendors_info WHERE auth_token = ?");
+$stmt->bind_param("s", $token);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result->num_rows === 0) {
+  respond('error', 'Invalid or expired token', [], 401);
+}
+
+// Get user info
+$user = $result->fetch_assoc();
+$user_email = $user['email'];
+
+// Fetch vendor info based on email 
+$stmt2 = $conn->prepare("SELECT * FROM vendors_info WHERE email = ?");
+$stmt2->bind_param("s", $user_email);
+$stmt2->execute();
+$res = $stmt2->get_result();
+
+if ($res->num_rows === 0) {
+  respond('error', 'No data found for this user', []);
+}
+
+$data = [];
+while ($row = $res->fetch_assoc()) {
+  // remove password and auth_token from the result
+  unset($row['password'], $row['auth_token'], $row['session_token']);
+  $data[] = $row;
+}
+
+respond('success', 'Data fetched successfully', $data);
