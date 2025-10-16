@@ -72,14 +72,15 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 }
 
 // Check user using standard bind_result + fetch
-$stmt = $conn->prepare("SELECT id, password FROM user_info WHERE email = ?");
+$stmt = $conn->prepare("SELECT id, password FROM user_info WHERE email = ? AND status = ?");
 if (!$stmt) {
   http_response_code(500);
   echo json_encode(["status" => "error", "message" => "Prepare failed: " . $conn->error]);
   exit;
 }
 
-$stmt->bind_param("s", $email);
+$status = 'Active';
+$stmt->bind_param("ss", $email, $status);
 
 if (!$stmt->execute()) {
   http_response_code(500);
@@ -94,7 +95,7 @@ $stmt->bind_result($user_id, $password_hash);
 if (!$stmt->fetch()) {
   // no row
   http_response_code(401);
-  echo json_encode(["status" => "error", "message" => "Invalid email or password"]);
+  echo json_encode(["status" => "error", "message" => "Invalid Credentials. Also check that you have verified your email"]);
   $stmt->close();
   exit;
 }
