@@ -1,9 +1,9 @@
 <?php
 
-$servername = "127.0.0.1";
-$username   = "root";
-$password   = "loner";
-$database   = "eventyad";
+$servername = "localhost";
+$username   = "eventyad_main";
+$password   = "eventyad_main";
+$database   = "eventyad_main";
 
 // Create connection using MySQLi OOP
 $conn = new mysqli($servername, $username, $password, $database);
