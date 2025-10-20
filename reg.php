@@ -86,17 +86,17 @@ if ($stmt->num_rows > 0) {
 $stmt->close();
 
 // Upload passport image
-/* $uploadDir = "passport/"; */
-/* $passportFile = $_FILES['passport']; */
-/* $extension = pathinfo($passportFile['name'], PATHINFO_EXTENSION); */
-/* $passportFilename = uniqid("passport_") . "." . $extension; */
-/* $targetPath = $uploadDir . $passportFilename; */
+$uploadDir = "passport/";
+$passportFile = $_FILES['passport'];
+$extension = pathinfo($passportFile['name'], PATHINFO_EXTENSION);
+$passportFilename = uniqid("passport_") . "." . $extension;
+$targetPath = $uploadDir . $passportFilename;
 
-/* if (!move_uploaded_file($passportFile['tmp_name'], $targetPath)) { */
-/*   http_response_code(500); */
-/*   echo json_encode(["status" => "error", "message" => "Failed to upload passport image"]); */
-/*   exit; */
-/* } */
+if (!move_uploaded_file($passportFile['tmp_name'], $targetPath)) {
+  http_response_code(500);
+  echo json_encode(["status" => "error", "message" => "Failed to upload passport image"]);
+  exit;
+}
 
 // Hash password
 $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
@@ -116,71 +116,70 @@ if (!$stmt->execute()) {
 $stmt->close();
 
 // SEND EMAIL
-/* require 'includes/PHPMailer.php'; */
-/* require 'includes/SMTP.php'; */
-/* require 'includes/Exception.php'; */
+require 'includes/PHPMailer.php';
+require 'includes/SMTP.php';
+require 'includes/Exception.php';
 
-/* use PHPMailer\PHPMailer\PHPMailer; */
-/* use PHPMailer\PHPMailer\Exception; */
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
-/* // Extract details for email */
-/* $lastname = explode(' ', $fullname)[1] ?? $fullname; */
+// Extract details for email
+$lastname = explode(' ', $fullname)[1] ?? $fullname;
 
-/* $mail = new PHPMailer(); */
-/* $mail->isSMTP(); */
-/* $mail->Host = "eventyad.com.ng"; */
-/* $mail->SMTPAuth = true; */
-/* $mail->SMTPSecure = "ssl"; */
-/* $mail->Port = 465; */
-/* $mail->Username = "support@eventyad.com.ng"; */
-/* $mail->Password = "8Xe)w3spwX,aTnZ_"; */
-/* $mail->setFrom('support@eventyad.com.ng', 'Verification Code'); */
-/* $mail->addAddress($email); */
-/* $mail->isHTML(true); */
-/* $mail->Subject = "Account Verification"; */
+$mail = new PHPMailer();
+$mail->isSMTP();
+$mail->Host = "eventyad.com.ng";
+$mail->SMTPAuth = true;
+$mail->SMTPSecure = "ssl";
+$mail->Port = 465;
+$mail->Username = "support@eventyad.com.ng";
+$mail->Password = "8Xe)w3spwX,aTnZ_";
+$mail->setFrom('support@eventyad.com.ng', 'Verification Code');
+$mail->addAddress($email);
+$mail->isHTML(true);
+$mail->Subject = "Account Verification";
 
-/* $mail->Body = " */
-/* <style> */
-/*     body { font-family: 'Roboto', sans-serif; color: #8094ae; font-size: 14px; } */
-/* </style> */
-/* <center style='width: 100%; background-color: #f5f6fa;'> */
-/*     <table width='100%' bgcolor='#f5f6fa'> */
-/*         <tr><td style='padding: 40px 0;'> */
-/*             <table style='max-width:620px;margin:0 auto;'> */
-/*                 <tr><td style='text-align:center;'><a href='https://eventyad.com.ng/'><img src='https://live-api.eventyad.com.ng/logo/4.png' height='70'></a></td></tr> */
-/*             </table> */
-/*             <table style='max-width:620px;margin:0 auto;background:#fff;'> */
-/*                 <tr><td style='padding:30px;'> */
-/*                     <h2 style='color:#0193E0;'>EVENT YAD Support</h2> */
-/*                     <p><strong>Hello $lastname,</strong></p> */
-/*                     <p>This is your verification code:</p> */
-/*                     <br> */
-/*                     <p><strong>CODE:</strong> $veriCode</p> */
-/*                     <br> */
-/*                     <p>If this wasn't you, please contact support immediately.</p> */
-/*                     <p><strong>EVENT-YAD</strong></p> */
-/*                 </td></tr> */
-/*             </table> */
-/*             <table style='max-width:620px;margin:0 auto; text-align:center;'> */
-/*                 <tr><td style='padding:25px 20px 0; font-size:13px;'> */
-/*                     &copy; 2025 EVENT-YAD. All rights reserved. */
-/*                 </td></tr> */
-/*             </table> */
-/*         </td></tr> */
-/*     </table> */
-/* </center> */
-/* "; */
+$mail->Body = "
+<style>
+    body { font-family: 'Roboto', sans-serif; color: #8094ae; font-size: 14px; }
+</style>
+<center style='width: 100%; background-color: #f5f6fa;'>
+    <table width='100%' bgcolor='#f5f6fa'>
+        <tr><td style='padding: 40px 0;'>
+            <table style='max-width:620px;margin:0 auto;'>
+                <tr><td style='text-align:center;'><a href='https://eventyad.com.ng/'><img src='https://live-api.eventyad.com.ng/logo/4.png' height='70'></a></td></tr>
+            </table>
+            <table style='max-width:620px;margin:0 auto;background:#fff;'>
+                <tr><td style='padding:30px;'>
+                    <h2 style='color:#0193E0;'>EVENT YAD Support</h2>
+                    <p><strong>Hello $lastname,</strong></p>
+                    <p>This is your verification code:</p>
+                    <br>
+                    <p><strong>CODE:</strong> $veriCode</p>
+                    <br>
+                    <p>If this wasn't you, please contact support immediately.</p>
+                    <p><strong>EVENT-YAD</strong></p>
+                </td></tr>
+            </table>
+            <table style='max-width:620px;margin:0 auto; text-align:center;'>
+                <tr><td style='padding:25px 20px 0; font-size:13px;'>
+                    &copy; 2025 EVENT-YAD. All rights reserved.
+                </td></tr>
+            </table>
+        </td></tr>
+    </table>
+</center>
+";
 
-/* $mailSent = $mail->send(); */
-$mailSent = true;
+$mailSent = $mail->send();
 
 http_response_code(201);
 echo json_encode([
   "status" => "success",
   "message" => "User registered successfully",
-  "email_sent" => $mailSent ? true : false
+  "email_sent" => $mailSent ? true : false,
+  "authCode" => $veriCode
 ]);
 
 $conn->close();
 exit;
-
