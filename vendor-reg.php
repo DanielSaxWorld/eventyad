@@ -5,12 +5,12 @@ error_reporting(E_ALL);
 
 // Handle CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    header("Access-Control-Allow-Origin: *");
-    header("Access-Control-Allow-Methods: POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization");
-    header("Access-Control-Max-Age: 86400");
-    http_response_code(204);
-    exit;
+  header("Access-Control-Allow-Origin: *");
+  header("Access-Control-Allow-Methods: POST, OPTIONS");
+  header("Access-Control-Allow-Headers: Content-Type, Authorization");
+  header("Access-Control-Max-Age: 86400");
+  http_response_code(204);
+  exit;
 }
 
 header("Access-Control-Allow-Origin: *");
@@ -22,45 +22,57 @@ include('db_conn.php');
 session_start();
 
 if (!$conn) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Database connection failed"]);
-    exit;
+  http_response_code(500);
+  echo json_encode(["status" => "error", "message" => "Database connection failed"]);
+  exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(["status" => "error", "message" => "Only POST method allowed"]);
-    exit;
+  http_response_code(405);
+  echo json_encode(["status" => "error", "message" => "Only POST method allowed"]);
+  exit;
 }
 
-// Sanitize and validate inputs
-$fullname      = trim($_POST['fullname']);
-$email         = trim($_POST['email']);
-$phone         = trim($_POST['phone']);
-$password      = trim($_POST['password']);
-$vendor_type   = trim($_POST['vendor_type']);
-$business_name = trim($_POST['business_name']);
-$location      = trim($_POST['location']);
+$input = json_decode(file_get_contents("php://input"), true);
 
-$rand = rand(1000,9999);
-$apha =  chr(mt_rand(65, 90)).chr(mt_rand(65, 90));
+// Sanitize and validate inputs
+if (is_array($input)) {
+  $fullname = trim($input['fullname'] ?? '');
+  $email = trim($input['email'] ?? '');
+  $phone = trim($input['phone'] ?? '');
+  $password = trim($input['password'] ?? '');
+  $vendor_type = trim($input['vendor_type'] ?? ''); // Added vendor_type from $input
+  $business_name = trim($input['business_name'] ?? ''); // Added business_name from $input
+  $location = trim($input['location'] ?? '');
+} else {
+  $fullname      = trim($_POST['fullname']);
+  $email         = trim($_POST['email']);
+  $phone         = trim($_POST['phone']);
+  $password      = trim($_POST['password']);
+  $vendor_type   = trim($_POST['vendor_type']);
+  $business_name = trim($_POST['business_name']);
+  $location      = trim($_POST['location']);
+}
+
+$rand = rand(1000, 9999);
+$apha =  chr(mt_rand(65, 90)) . chr(mt_rand(65, 90));
 $aphaa =  chr(rand(65, 90));
-$vendor_uin = $aphaa.$rand."EY";
+$vendor_uin = $aphaa . $rand . "EY";
 
 $_SESSION['email'] = $email;
 
 // Check required fields
-if (!$fullname || !$email || !$phone || !$password) {
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Missing required fields"]);
-    exit;
+if (empty($fullname) || empty($email) || empty($phone) || empty($password)) {
+  http_response_code(400);
+  echo json_encode(["status" => "error", "message" => "Missing required fields"]);
+  exit;
 }
 
 // Validate email format
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Invalid email format"]);
-    exit;
+  http_response_code(400);
+  echo json_encode(["status" => "error", "message" => "Invalid email format"]);
+  exit;
 }
 
 // Check for duplicate vendor
@@ -69,42 +81,44 @@ $stmt->bind_param("ss", $phone, $email);
 $stmt->execute();
 $stmt->store_result();
 if ($stmt->num_rows > 0) {
-    http_response_code(409);
-    echo json_encode(["status" => "error", "message" => "Vendor already exists"]);
-    $stmt->close();
-    exit;
+  http_response_code(409);
+  echo json_encode(["status" => "error", "message" => "Vendor already exists"]);
+  $stmt->close();
+  exit;
 }
 $stmt->close();
 
 // File upload functions
-function uploadFile($file, $prefix, $uploadDir = "uploads/") {
-    if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) return null;
+function uploadFile($file, $prefix, $uploadDir = "uploads/")
+{
+  if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) return null;
 
-    $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-    $filename = uniqid($prefix . "_") . "." . $ext;
-    $targetPath = $uploadDir . $filename;
+  $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+  $filename = uniqid($prefix . "_") . "." . $ext;
+  $targetPath = $uploadDir . $filename;
 
-    if (!move_uploaded_file($file['tmp_name'], $targetPath)) return null;
-    return $filename;
+  if (!move_uploaded_file($file['tmp_name'], $targetPath)) return null;
+  return $filename;
 }
 
-function uploadMultipleFiles($files, $prefix, $uploadDir = "uploads/") {
-    $uploadedFiles = [];
-    if (!isset($files['name']) || !is_array($files['name'])) return $uploadedFiles;
+function uploadMultipleFiles($files, $prefix, $uploadDir = "uploads/")
+{
+  $uploadedFiles = [];
+  if (!isset($files['name']) || !is_array($files['name'])) return $uploadedFiles;
 
-    foreach ($files['name'] as $index => $name) {
-        if ($files['error'][$index] === UPLOAD_ERR_OK) {
-            $ext = pathinfo($name, PATHINFO_EXTENSION);
-            $filename = uniqid($prefix . "_") . "." . $ext;
-            $targetPath = $uploadDir . $filename;
+  foreach ($files['name'] as $index => $name) {
+    if ($files['error'][$index] === UPLOAD_ERR_OK) {
+      $ext = pathinfo($name, PATHINFO_EXTENSION);
+      $filename = uniqid($prefix . "_") . "." . $ext;
+      $targetPath = $uploadDir . $filename;
 
-            if (move_uploaded_file($files['tmp_name'][$index], $targetPath)) {
-                $uploadedFiles[] = $filename;
-            }
-        }
+      if (move_uploaded_file($files['tmp_name'][$index], $targetPath)) {
+        $uploadedFiles[] = $filename;
+      }
     }
+  }
 
-    return $uploadedFiles;
+  return $uploadedFiles;
 }
 
 // Upload files
@@ -126,17 +140,27 @@ $stmt = $conn->prepare("INSERT INTO vendors_info (
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')");
 
 $stmt->bind_param(
-    "sssssssssssss",
-    $vendor_uin, $fullname, $email, $phone, $hashedPassword,
-    $vendor_type, $business_name, $location,
-    $workJson, $businessDoc, $idDoc, $veriCode, $authToken
+  "sssssssssssss",
+  $vendor_uin,
+  $fullname,
+  $email,
+  $phone,
+  $hashedPassword,
+  $vendor_type,
+  $business_name,
+  $location,
+  $workJson,
+  $businessDoc,
+  $idDoc,
+  $veriCode,
+  $authToken
 );
 
 if (!$stmt->execute()) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Failed to register vendor"]);
-    $stmt->close();
-    exit;
+  http_response_code(500);
+  echo json_encode(["status" => "error", "message" => "Failed to register vendor"]);
+  $stmt->close();
+  exit;
 }
 $stmt->close();
 
@@ -200,11 +224,10 @@ $mailSent = $mail->send();
 
 http_response_code(201);
 echo json_encode([
-    "status" => "success",
-    "message" => "Vendor registered successfully",
-    "auth_token" => $authToken
+  "status" => "success",
+  "message" => "Vendor registered successfully",
+  "auth_token" => $authToken
 ]);
 
 $conn->close();
 exit;
-?>

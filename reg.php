@@ -6,12 +6,12 @@ error_reporting(E_ALL);
 // JSON response
 // Handle CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    header("Access-Control-Allow-Origin: *");
-    header("Access-Control-Allow-Methods: POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization");
-    header("Access-Control-Max-Age: 86400");
-    http_response_code(204); // No Content
-    exit;
+  header("Access-Control-Allow-Origin: *");
+  header("Access-Control-Allow-Methods: POST, OPTIONS");
+  header("Access-Control-Allow-Headers: Content-Type, Authorization");
+  header("Access-Control-Max-Age: 86400");
+  http_response_code(204); // No Content
+  exit;
 }
 
 header("Access-Control-Allow-Origin: *");
@@ -24,37 +24,52 @@ header("Content-Type: application/json");
 include('db_conn.php');
 
 if (!$conn) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Database connection failed"]);
-    exit;
+  http_response_code(500);
+  echo json_encode(["status" => "error", "message" => "Database connection failed"]);
+  exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(["status" => "error", "message" => "Only POST method allowed"]);
-    exit;
+  http_response_code(405);
+  echo json_encode(["status" => "error", "message" => "Only POST method allowed"]);
+  exit;
 }
 
-// Sanitize inputs
-$fullname = trim($_POST['fullname']);
-$phone    = trim($_POST['phone']);
-$email    = trim($_POST['email']);
-$password = trim($_POST['password']);
+// Read Input (Supports both JSON and form-data)
+$input = json_decode(file_get_contents('php://input'), true);
 
-$veriCode = rand(100000,999999);
+if (is_array($input)) {
+  $fullname = trim($input['fullname'] ?? '');
+  $phone    = trim($input['phone'] ?? '');
+  $email    = trim($input['email'] ?? '');
+  $password = trim($input['password'] ?? '');
+} else {
+  $fullname = trim($_POST['fullname']);
+  $phone    = trim($_POST['phone']);
+  $email    = trim($_POST['email']);
+  $password = trim($_POST['password']);
+}
+
+$veriCode = rand(100000, 999999);
 
 // Validate required fields
-if (!$fullname || !$phone || !$email || !$password || !isset($_FILES['passport'])) {
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Missing required fields"]);
-    exit;
+if (empty($fullname) || empty($phone) || empty($email) || empty($password)) {
+  http_response_code(400);
+  echo json_encode(["status" => "error", "message" => "Missing required fields"]);
+  exit;
 }
+
+/* if (empty($fullname) || empty($phone) || empty($email) || empty($password) || !isset($_FILES['passport'])) { */
+/*   http_response_code(400); */
+/*   echo json_encode(["status" => "error", "message" => "Missing required fields"]); */
+/*   exit; */
+/* } */
 
 // Validate email
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Invalid email format"]);
-    exit;
+  http_response_code(400);
+  echo json_encode(["status" => "error", "message" => "Invalid email format"]);
+  exit;
 }
 
 // Check for duplicate
@@ -63,10 +78,10 @@ $stmt->bind_param("ss", $phone, $email);
 $stmt->execute();
 $stmt->store_result();
 if ($stmt->num_rows > 0) {
-    http_response_code(409);
-    echo json_encode(["status" => "error", "message" => "User already exists"]);
-    $stmt->close();
-    exit;
+  http_response_code(409);
+  echo json_encode(["status" => "error", "message" => "User already exists"]);
+  $stmt->close();
+  exit;
 }
 $stmt->close();
 
@@ -78,13 +93,14 @@ $passportFilename = uniqid("passport_") . "." . $extension;
 $targetPath = $uploadDir . $passportFilename;
 
 if (!move_uploaded_file($passportFile['tmp_name'], $targetPath)) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Failed to upload passport image"]);
-    exit;
+  http_response_code(500);
+  echo json_encode(["status" => "error", "message" => "Failed to upload passport image"]);
+  exit;
 }
 
 // Hash password
 $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+$passportFilename = "passwprf_sdjkan.png";
 
 // Insert user
 $stmt = $conn->prepare("INSERT INTO user_info (fullname, phone, email, password, passport, veri_code, status) VALUES (?, ?, ?, ?, ?, ?, 'Pending')");
@@ -92,10 +108,10 @@ $veriCode = bin2hex(random_bytes(4));
 $stmt->bind_param("ssssss", $fullname, $phone, $email, $hashedPassword, $passportFilename, $veriCode);
 
 if (!$stmt->execute()) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Failed to register user"]);
-    $stmt->close();
-    exit;
+  http_response_code(500);
+  echo json_encode(["status" => "error", "message" => "Failed to register user"]);
+  $stmt->close();
+  exit;
 }
 $stmt->close();
 
@@ -159,11 +175,11 @@ $mailSent = $mail->send();
 
 http_response_code(201);
 echo json_encode([
-    "status" => "success",
-    "message" => "User registered successfully",
-    "email_sent" => $mailSent ? true : false
+  "status" => "success",
+  "message" => "User registered successfully",
+  "email_sent" => $mailSent ? true : false,
+  "authCode" => $veriCode
 ]);
 
 $conn->close();
 exit;
-?>

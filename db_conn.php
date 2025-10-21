@@ -1,16 +1,20 @@
 <?php
 
-//$mysqli = new mysqli("example.com", "user", "password", "database");
+$servername = "localhost";
+$username   = "eventyad_main";
+$password   = "eventyad_main";
+$database   = "eventyad_main";
 
-	$conn = new mysqli("localhost", "eventyad_main", "eventyad_main", "eventyad_main");
- 
-//	 check connection
-if (mysqli_connect_errno()) {
-    printf("Connect failed: %s\n", mysqli_connect_error());
-    exit();
+// Create connection using MySQLi OOP
+$conn = new mysqli($servername, $username, $password, $database);
+
+// Check connection
+if ($conn->connect_error) {
+  http_response_code(500);
+  echo json_encode([
+    "status" => "error",
+    "message" => "Database connection failed",
+    "error" => $conn->connect_error
+  ]);
+  exit;
 }
-	/* or die("Could not connect: " . mysqli_error($conn));
-	mysqli_select_db($conn,$dbname) or die("cannot connect to DataBase");*/
-
-?>
-

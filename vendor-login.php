@@ -5,12 +5,12 @@ error_reporting(E_ALL);
 
 // Handle CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    header("Access-Control-Allow-Origin: *");
-    header("Access-Control-Allow-Methods: POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization");
-    header("Access-Control-Max-Age: 86400");
-    http_response_code(204);
-    exit;
+  header("Access-Control-Allow-Origin: *");
+  header("Access-Control-Allow-Methods: POST, OPTIONS");
+  header("Access-Control-Allow-Headers: Content-Type, Authorization");
+  header("Access-Control-Max-Age: 86400");
+  http_response_code(204);
+  exit;
 }
 
 header("Access-Control-Allow-Origin: *");
@@ -30,32 +30,40 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 if (!$conn) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Database connection failed"]);
-    exit;
+  http_response_code(500);
+  echo json_encode(["status" => "error", "message" => "Database connection failed"]);
+  exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(["status" => "error", "message" => "Only POST method allowed"]);
-    exit;
+  http_response_code(405);
+  echo json_encode(["status" => "error", "message" => "Only POST method allowed"]);
+  exit;
 }
 
+$input = json_decode(file_get_contents("php://input"), true);
+
 // Get request data
-$email    = trim($_POST['email']);
-$password = trim($_POST['password']);
+if (is_array($input)) {
+  $email = trim($input['email'] ?? '');
+  $password = trim($input['password'] ?? '');
+} else {
+  $email    = trim($_POST['email']);
+  $password = trim($_POST['password']);
+}
+
 
 // Validate
 if (empty($email) || empty($password)) {
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Missing required fields"]);
-    exit;
+  http_response_code(400);
+  echo json_encode(["status" => "error", "message" => "Missing required fields"]);
+  exit;
 }
 
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Invalid email format"]);
-    exit;
+  http_response_code(400);
+  echo json_encode(["status" => "error", "message" => "Invalid email format"]);
+  exit;
 }
 
 // Get user from DB
@@ -65,10 +73,10 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
-    http_response_code(401);
-    echo json_encode(["status" => "error", "message" => "Invalid email or password"]);
-    $stmt->close();
-    exit;
+  http_response_code(401);
+  echo json_encode(["status" => "error", "message" => "Invalid email or password"]);
+  $stmt->close();
+  exit;
 }
 
 $user = $result->fetch_assoc();
@@ -76,9 +84,9 @@ $stmt->close();
 
 // Verify password
 if (!password_verify($password, $user['password'])) {
-    http_response_code(401);
-    echo json_encode(["status" => "error", "message" => "Invalid email or password"]);
-    exit;
+  http_response_code(401);
+  echo json_encode(["status" => "error", "message" => "Invalid email or password"]);
+  exit;
 }
 
 // Capture client info
@@ -88,33 +96,33 @@ $currentDateTime = date('Y-m-d H:i a');
 
 // Case 1: Status = Pending → Send 6-digit code
 if ($user['status'] === 'Pending') {
-    $veriCode = rand(100000, 999999);
+  $veriCode = rand(100000, 999999);
 
-    // Update verification code in DB
-    $updateStmt = $conn->prepare("UPDATE vendors_info SET veri_code = ? WHERE email = ?");
-    $updateStmt->bind_param("ss", $veriCode, $email);
-    $updateStmt->execute();
-    $updateStmt->close();
+  // Update verification code in DB
+  $updateStmt = $conn->prepare("UPDATE vendors_info SET veri_code = ? WHERE email = ?");
+  $updateStmt->bind_param("ss", $veriCode, $email);
+  $updateStmt->execute();
+  $updateStmt->close();
 
-    // Get last name
-    $fullname = $user['fullname'];
-    $lastname = explode(' ', $fullname)[1] ?? $fullname;
+  // Get last name
+  $fullname = $user['fullname'];
+  $lastname = explode(' ', $fullname)[1] ?? $fullname;
 
-    // Send verification email
-    $mail = new PHPMailer();
-    $mail->isSMTP();
-    $mail->Host = "eventyad.com.ng";
-    $mail->SMTPAuth = true;
-    $mail->SMTPSecure = "ssl";
-    $mail->Port = 465;
-    $mail->Username = "support@eventyad.com.ng";
-    $mail->Password = "8Xe)w3spwX,aTnZ_";
-    $mail->setFrom('support@eventyad.com.ng', 'Verification Code');
-    $mail->addAddress($email);
-    $mail->isHTML(true);
-    $mail->Subject = "Vendor Account Verification";
+  // Send verification email
+  $mail = new PHPMailer();
+  $mail->isSMTP();
+  $mail->Host = "eventyad.com.ng";
+  $mail->SMTPAuth = true;
+  $mail->SMTPSecure = "ssl";
+  $mail->Port = 465;
+  $mail->Username = "support@eventyad.com.ng";
+  $mail->Password = "8Xe)w3spwX,aTnZ_";
+  $mail->setFrom('support@eventyad.com.ng', 'Verification Code');
+  $mail->addAddress($email);
+  $mail->isHTML(true);
+  $mail->Subject = "Vendor Account Verification";
 
-    $mail->Body = "
+  $mail->Body = "
     <style>body { font-family: 'Roboto', sans-serif; color: #8094ae; font-size: 14px; }</style>
     <center style='width: 100%; background-color: #f5f6fa;'>
         <table width='100%' bgcolor='#f5f6fa'>
@@ -144,16 +152,16 @@ if ($user['status'] === 'Pending') {
     </center>
     ";
 
-    $mail->send();
+  $mail->send();
 
-    http_response_code(200);
-    echo json_encode([
-        "status" => "validate",
-        "message" => "Validate your account. A verification code has been sent.",
-        "email" => $email
-    ]);
-    $conn->close();
-    exit;
+  http_response_code(200);
+  echo json_encode([
+    "status" => "validate",
+    "message" => "Validate your account. A verification code has been sent.",
+    "email" => $email
+  ]);
+  $conn->close();
+  exit;
 }
 
 // Case 2: Active user — generate auth token and login
@@ -212,16 +220,15 @@ $mail->send();
 // Final response
 http_response_code(200);
 echo json_encode([
-    "status" => "success",
-    "message" => "Login successful",
-    "auth_token" => $authToken,
-    "user_id" => $user['id'],
-    "email" => $email,
-    "ip_address" => $ipAddress,
-    "device" => $userAgent,
-    "logged_in_at" => $currentDateTime
+  "status" => "success",
+  "message" => "Login successful",
+  "auth_token" => $authToken,
+  "user_id" => $user['id'],
+  "email" => $email,
+  "ip_address" => $ipAddress,
+  "device" => $userAgent,
+  "logged_in_at" => $currentDateTime
 ]);
 
 $conn->close();
 exit;
-?>
